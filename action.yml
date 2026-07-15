@@ -4,7 +4,7 @@ description: Detects whether a given phrase (regex) appears in a pull request de
 inputs:
   phrase:
     description: Extended-regex pattern to search for in the PR description.
-    required: false
+    required: true
   true_value:
     description: Value to output when the phrase is detected.
     required: false
@@ -13,6 +13,10 @@ inputs:
     description: Value to output when the phrase is not detected.
     required: false
     default: ''
+  github_token:
+    description: Token used to authenticate the GitHub API request for the PR body.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   detected:
@@ -30,17 +34,26 @@ runs:
       # shell parses the script, so a pattern containing shell metacharacters
       # would be executed as code. Env vars are never interpreted by the shell.
       env:
-        PR_BODY: ${{ github.event.pull_request.body }}
         PHRASE: ${{ inputs.phrase }}
         TRUE_VALUE: ${{ inputs.true_value }}
         FALSE_VALUE: ${{ inputs.false_value }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
       run: |
+        # We do not use github.event.pull_request.body because it gets stuck
+        # on the first PR description unless you push a new commit
+        PR_BODY=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER" \
+            | python3 -c "import sys, json; print(json.load(sys.stdin)['body'] or '')")
         if [[ -z "$PHRASE" ]]; then
           echo "Error: 'phrase' input is required." >&2
           exit 1
         fi
         if echo "$PR_BODY" | grep -iqE "$PHRASE"; then
+          echo Detected
           echo "detected=$TRUE_VALUE" >> $GITHUB_OUTPUT
         else
+          echo Not detected
           echo "detected=$FALSE_VALUE" >> $GITHUB_OUTPUT
         fi

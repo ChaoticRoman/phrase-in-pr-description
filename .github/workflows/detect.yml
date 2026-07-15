@@ -22,15 +22,24 @@ jobs:
         id: check
         shell: bash
         env:
-          PR_BODY: ${{ github.event.pull_request.body }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
           PHRASE: ${{ inputs.phrase }}
         run: |
+          # We do not use github.event.pull_request.body because it gets stuck
+          # on the first PR description unless you push a new commit
+          PR_BODY=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER" \
+            | python3 -c "import sys, json; print(json.load(sys.stdin)['body'] or '')")
           if [[ -z "$PHRASE" ]]; then
             echo "Error: 'phrase' input is required." >&2
             exit 1
           fi
           if echo "$PR_BODY" | grep -iqE "$PHRASE"; then
+            echo Detected.
             echo "detected=true" >> $GITHUB_OUTPUT
           else
+            echo Not detected.
             echo "detected=" >> $GITHUB_OUTPUT
           fi
