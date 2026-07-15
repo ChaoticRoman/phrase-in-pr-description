@@ -22,6 +22,9 @@ jobs:
         id: check
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
           PHRASE: ${{ inputs.phrase }}
         run: |
           # We do not use github.event.pull_request.body because it gets stuck
@@ -34,7 +37,9 @@ jobs:
             exit 1
           fi
           if echo "$PR_BODY" | grep -iqE "$PHRASE"; then
+            echo Detected.
             echo "detected=true" >> $GITHUB_OUTPUT
           else
+            echo Not detected.
             echo "detected=" >> $GITHUB_OUTPUT
           fi

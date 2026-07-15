@@ -13,6 +13,10 @@ inputs:
     description: Value to output when the phrase is not detected.
     required: false
     default: ''
+  github_token:
+    description: Token used to authenticate the GitHub API request for the PR body.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   detected:
@@ -33,6 +37,9 @@ runs:
         PHRASE: ${{ inputs.phrase }}
         TRUE_VALUE: ${{ inputs.true_value }}
         FALSE_VALUE: ${{ inputs.false_value }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
       run: |
         # We do not use github.event.pull_request.body because it gets stuck
         # on the first PR description unless you push a new commit
@@ -44,7 +51,9 @@ runs:
           exit 1
         fi
         if echo "$PR_BODY" | grep -iqE "$PHRASE"; then
+          echo Detected
           echo "detected=$TRUE_VALUE" >> $GITHUB_OUTPUT
         else
+          echo Not detected
           echo "detected=$FALSE_VALUE" >> $GITHUB_OUTPUT
         fi
