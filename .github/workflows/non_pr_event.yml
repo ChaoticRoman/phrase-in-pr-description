@@ -1,0 +1,45 @@
+name: Non-PR Event
+
+# A workflow can be triggered both by pull requests and by events that have no
+# PR attached (push, workflow_dispatch, schedule, …). There is no description
+# to search then, so the gate must report 'not detected' and let the work run.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check-skip:
+    uses: ./.github/workflows/detect.yml
+    with:
+      phrase: 'Skip hello'
+
+  echo-hello:
+    needs: check-skip
+    if: "!needs.check-skip.outputs.detected"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say hello
+        run: echo "Hello!"
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for skip phrase
+        id: skip
+        uses: ./
+        with:
+          phrase: 'skip[ -_]hello'
+
+      - name: Say hello
+        if: "!steps.skip.outputs.detected"
+        run: echo "Hello!"
+
+      - name: Fail if the gate fired
+        if: steps.skip.outputs.detected
+        run: |
+          echo "Expected 'detected' to be empty on a '$GITHUB_EVENT_NAME' event." >&2
+          exit 1

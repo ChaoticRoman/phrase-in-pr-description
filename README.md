@@ -26,6 +26,12 @@ A GitHub Action that detects whether a given phrase (extended regex) appears in 
 |------------|------------------------------------------------|-------------------------|
 | `detected` | `'true'` if the phrase was found, `''` otherwise. | `true_value`, `false_value` |
 
+When the run has no pull request attached — a `push`, `workflow_dispatch`,
+`schedule`, … event — there is no description to search, so `detected` is
+`false_value` (empty by default). The gate is a no-op rather than an error,
+which means a workflow triggered by both pull requests and pushes can call it
+unconditionally.
+
 By default the output is `'true'` or **empty string**, so it can be used directly as a boolean in `if:` conditions:
 
 **Run a step only when the phrase is detected:**
