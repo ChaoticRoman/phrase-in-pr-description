@@ -158,7 +158,7 @@ jobs:
         with:
           phrase: 'skip[ -_]tests'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Run tests
         if: "!steps.skip.outputs.detected"
