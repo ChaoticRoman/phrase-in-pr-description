@@ -27,15 +27,31 @@ jobs:
           REPO: ${{ github.repository }}
           PHRASE: ${{ inputs.phrase }}
         run: |
-          # We do not use github.event.pull_request.body because it gets stuck
-          # on the first PR description unless you push a new commit
-          PR_BODY=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER" \
-            | python3 -c "import sys, json; print(json.load(sys.stdin)['body'] or '')")
           if [[ -z "$PHRASE" ]]; then
             echo "Error: 'phrase' input is required." >&2
             exit 1
           fi
+
+          # Events without an attached pull request (push, workflow_dispatch,
+          # schedule, …) have no description to search. Report 'not detected'
+          # instead of failing, so callers can gate on the output regardless of
+          # what triggered the run.
+          if [[ -z "$PR_NUMBER" ]]; then
+            echo "No pull request attached to this '$GITHUB_EVENT_NAME' event, nothing to search."
+            echo "detected=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # We do not use github.event.pull_request.body because it gets stuck
+          # on the first PR description unless you push a new commit
+          if ! PR_JSON=$(curl -sS --fail-with-body \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER"); then
+            echo "Error: could not fetch PR #$PR_NUMBER of $REPO: $PR_JSON" >&2
+            exit 1
+          fi
+          PR_BODY=$(python3 -c "import sys, json; print(json.load(sys.stdin).get('body') or '')" <<<"$PR_JSON")
+
           if echo "$PR_BODY" | grep -iqE "$PHRASE"; then
             echo Detected.
             echo "detected=true" >> $GITHUB_OUTPUT
